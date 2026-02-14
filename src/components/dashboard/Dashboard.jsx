@@ -268,7 +268,7 @@ const Dashboard = () => {
                 <p className="help-card-description">
                     Explore our integration guides and sample code to get your application up and running in minutes.
                 </p>
-                <button className="btn">View Documentation</button>
+                <button className="btn" onClick={() => navigate('/documentation')}>View Documentation</button>
             </div>
             {/* Access Request Modal */}
             {showAccessModal && selectedApp && (
