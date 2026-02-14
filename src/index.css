@@ -660,6 +660,33 @@ a:hover {
   gap: var(--spacing-2);
 }
 
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-4);
+  gap: var(--spacing-4);
+}
+
+.table-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-gray-900);
+  margin: 0;
+  padding: 0;
+  line-height: 1.5;
+}
+
+.table-count {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-600);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.5;
+  white-space: nowrap;
+  padding: 0;
+  margin: 0;
+}
+
 .table-pagination {
   display: flex;
   justify-content: space-between;

@@ -96,14 +96,12 @@ const ManageAppUsers = () => {
                 </div>
             )}
 
-            <div className="table-container">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <h3 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>Users with Access</h3>
-                    <span style={{ fontSize: '14px', color: 'var(--color-gray-600)' }}>
-                        {users.length} {users.length === 1 ? 'user' : 'users'}
-                    </span>
-                </div>
+            <h1 className="page-title">Users with Access</h1>
+            <p className="page-description">
+                {users.length} {users.length === 1 ? 'user' : 'users'}
+            </p>
 
+            <div className="table-container">
                 <table className="table">
                     <thead>
                         <tr>
