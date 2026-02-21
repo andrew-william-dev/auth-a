@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { Shield, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
+import { Shield, AlertCircle, Loader2, ArrowRight, CheckCircle } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 
@@ -10,6 +10,7 @@ const OAuthLogin = () => {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [validating, setValidating] = useState(true);
+    const [autoRedirecting, setAutoRedirecting] = useState(false);
     const [error, setError] = useState('');
     const [application, setApplication] = useState(null);
     const navigate = useNavigate();
@@ -22,10 +23,28 @@ const OAuthLogin = () => {
     const codeChallengeMethod = searchParams.get('code_challenge_method');
 
     useEffect(() => {
-        validateRequest();
+        validateAndCheckSession();
     }, []);
 
-    const validateRequest = async () => {
+    // Decode JWT payload without verifying signature (verification is done server-side)
+    const getTokenPayload = (token) => {
+        try {
+            const base64Payload = token.split('.')[1];
+            const payload = JSON.parse(atob(base64Payload));
+            return payload;
+        } catch {
+            return null;
+        }
+    };
+
+    const isTokenValid = (token) => {
+        const payload = getTokenPayload(token);
+        if (!payload || !payload.exp) return false;
+        // Check if token expires more than 30 seconds from now
+        return payload.exp * 1000 > Date.now() + 30000;
+    };
+
+    const validateAndCheckSession = async () => {
         // Check if all required parameters are present
         if (!clientId || !redirectUrl || !codeChallenge || !codeChallengeMethod) {
             setError('Missing required OAuth parameters');
@@ -34,6 +53,7 @@ const OAuthLogin = () => {
         }
 
         try {
+            // Validate the OAuth request first
             const response = await api.get('/oauth/validate', {
                 params: {
                     clientId,
@@ -44,10 +64,42 @@ const OAuthLogin = () => {
             });
 
             setApplication(response.data.application);
-            setValidating(false);
+
+            // Now check for an existing valid DevPortal session token
+            const storedToken = localStorage.getItem('token');
+            if (storedToken && isTokenValid(storedToken)) {
+                // Valid session found - auto-authorize and redirect
+                setValidating(false);
+                setAutoRedirecting(true);
+                await autoAuthorize(storedToken);
+            } else {
+                setValidating(false);
+            }
         } catch (err) {
             setError(err.response?.data?.message || 'Invalid OAuth request');
             setValidating(false);
+        }
+    };
+
+    const autoAuthorize = async (token) => {
+        try {
+            const response = await api.post('/oauth/authorize-with-token', {
+                token,
+                clientId,
+                redirectUrl,
+                code_challenge: codeChallenge,
+                code_challenge_method: codeChallengeMethod,
+            });
+
+            const authCode = response.data.code;
+            const separator = redirectUrl.includes('?') ? '&' : '?';
+            window.location.href = `${redirectUrl}${separator}code=${authCode}`;
+        } catch (err) {
+            // Session might be valid locally but invalid on server (e.g. user lost access)
+            // Fall back to the login form
+            setAutoRedirecting(false);
+            const errMsg = err.response?.data?.message || null;
+            if (errMsg) setError(errMsg);
         }
     };
 
@@ -76,6 +128,7 @@ const OAuthLogin = () => {
         }
     };
 
+    // --- Loading / Validating State ---
     if (validating) {
         return (
             <div className="oauth-container">
@@ -89,6 +142,7 @@ const OAuthLogin = () => {
         );
     }
 
+    // --- Error State (invalid OAuth request) ---
     if (error && !application) {
         return (
             <div className="oauth-container">
@@ -112,6 +166,25 @@ const OAuthLogin = () => {
         );
     }
 
+    // --- Auto-redirecting (valid session found) ---
+    if (autoRedirecting) {
+        return (
+            <div className="oauth-container">
+                <div className="oauth-card">
+                    <div className="oauth-loader">
+                        <CheckCircle size={48} style={{ color: 'var(--color-success)' }} />
+                        <p style={{ marginTop: '16px', fontWeight: 600 }}>Session found!</p>
+                        <p style={{ color: 'var(--color-gray-500)', fontSize: '0.875rem', marginTop: '4px' }}>
+                            Redirecting you to <strong>{application?.name}</strong>...
+                        </p>
+                        <Loader2 className="oauth-spinner" size={24} style={{ marginTop: '16px' }} />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // --- Normal Login Form ---
     return (
         <div className="oauth-container">
             <div className="oauth-card">
